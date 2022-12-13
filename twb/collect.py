@@ -1,14 +1,14 @@
-import argparse
+from __future__ import annotations
+
 import json
 import time
 from pathlib import Path
-from subprocess import check_call
 
 import hypy_utils.downloader
 from hypy_utils import write, json_stringify, printc, ensure_dir
 from tweepy import API, Tweet, Unauthorized, NotFound, OAuthHandler, User
 
-from twb.config import load_config, Config
+from .config import Config
 from .utils import debug
 
 
@@ -168,26 +168,3 @@ def download_media(json_path: Path):
         [download(m) for m in medias]
 
     write(json_path, json_stringify(obj, indent=2))
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser("Twitter Backup Tool")
-    parser.add_argument("username", help="@user of the user you want to back up")
-    parser.add_argument("-p", "--path", help="Output path")
-    parser.add_argument("-c", "--config", help="Config file path")
-    args = parser.parse_args()
-
-    # Load config
-    config = load_config(args.config or "config.toml")
-
-    # Login
-    api = tweepy_login(config)
-
-    # Convert path
-    BASEDIR = Path(args.path or "backups")
-
-    # Crawl tweets
-    download_all_tweets(api, args.username)
-
-    # Download media
-    download_media(BASEDIR / args.username / 'tweets.json')
