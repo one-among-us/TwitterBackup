@@ -59,7 +59,7 @@ def get_tweets(api: API, name: str, rate_delay: float, max_id: int | None) -> li
     return tweets
 
 
-def download_all_tweets(api: API, screen_name: str,
+def download_all_tweets(api: API, screen_name: str, json_path: Path,
                         download_if_exists: bool = False) -> None:
     """
     Download all tweets from a specific individual to a local folder.
@@ -77,13 +77,14 @@ def download_all_tweets(api: API, screen_name: str,
     limit of 100,000 requests / 24 hours = 69.44 rpm independent of authentication method. To be
     safe, this function uses a rate limit of 60 rpm.
 
+    :param json_path: Path of the output tweets.json file
     :param api: Tweepy API object
     :param screen_name: Screen name of that individual
     :param download_if_exists: Whether to download if it already exists (Default: False)
     :return: None
     """
     # Ensure directories exist
-    file = BASEDIR / screen_name / 'tweets.json'
+    file = Path(json_path)
 
     # Check if user already exists
     if file.is_file():

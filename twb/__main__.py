@@ -22,12 +22,13 @@ def run():
 
     # Convert path
     BASEDIR = Path(args.path or "backups")
+    json_path = BASEDIR / args.username / 'tweets.json'
 
     # Crawl tweets
-    download_all_tweets(api, args.username)
+    download_all_tweets(api, args.username, json_path)
 
     # Download media
-    download_media(BASEDIR / args.username / 'tweets.json')
+    download_media(json_path)
 
 
 if __name__ == '__main__':
