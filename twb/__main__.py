@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from hypy_utils import printc
+
 from .collect import tweepy_login, download_all_tweets, download_media
 from .config import load_config
 
@@ -29,6 +31,8 @@ def run():
 
     # Download media
     download_media(json_path)
+
+    printc('&a⭐️ All done!')
 
 
 if __name__ == '__main__':

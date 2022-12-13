@@ -155,11 +155,11 @@ def download_media(json_path: Path):
         if media['type'] == 'video':
             # Find video URL of the video with the highest bitrate
             v = max(media['video_info']['variants'], key=lambda x: x.get('bitrate') or 0)
-            print(f"Downloading video {v}")
             url = v['url']
             fp = ensure_dir(dp / 'media' / 'video') / url.split("/")[-1].split("?")[0]
-            # check_call(["youtube-dl", url, '-o', fp])
-            hypy_utils.downloader.download_file(url, fp)
+            if not fp.is_file():
+                print(f"Downloading video {v}")
+                hypy_utils.downloader.download_file(url, fp)
             media['local_video_path'] = str(fp.relative_to(dp))
 
     for t in obj:
