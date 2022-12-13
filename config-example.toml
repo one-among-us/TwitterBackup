@@ -1,0 +1,8 @@
+# The consumer key from the Twitter application portal (https://developer.twitter.com/en/portal/dashboard)
+consumer_key = '#########################'
+# The consumer secret from the Twitter application portal
+consumer_secret = '##################################################'
+# The access token of an app from the Twitter application portal
+access_token = '##################################################'
+# The access secret of an app from the Twitter application portal
+access_secret = '#############################################'
