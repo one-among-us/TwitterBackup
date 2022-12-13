@@ -152,6 +152,7 @@ cython_debug/
 .idea/
 ._*
 .DS_Store
+/*.iml
 
 # Data
 backups
