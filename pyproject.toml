@@ -9,7 +9,7 @@ readme = "README.md"
 authors = [
     { name = "Azalea Gui", email = "me@hydev.org" }
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 keywords = ["twitter", "backup"]
 license = { file = "LICENSE" }
 classifiers = [
