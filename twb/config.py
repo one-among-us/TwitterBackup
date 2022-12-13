@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import toml
+from hypy_utils import printc
 
 
 @dataclass
@@ -39,8 +40,17 @@ def load_config(path: str = 'config.toml') -> Config:
     :param path: Path of the config file (Default: config.json5)
     :return: Config object
     """
-    path = Path(os.getenv('twb_config_path') or path)
+    fp = os.getenv('twb_config_path')
 
-    assert path.is_file(), f"Config file not found: {path.absolute()}. \nPlease put your configuration in the path"
+    if fp is None or not os.path.isfile(fp):
+        fp = path
+    if fp is None or not os.path.isfile(fp):
+        fp = Path.home() / ".config" / "twb" / "config.toml"
 
-    return Config(**toml.loads(path.read_text()))
+    fp = Path(fp)
+
+    if not fp.is_file():
+        printc(f"&cConfig file not found in either {path} or {fp} \nPlease put your configuration in the path")
+        exit(3)
+
+    return Config(**toml.loads(fp.read_text()))
