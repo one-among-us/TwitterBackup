@@ -1,5 +1,8 @@
 # TwitterBackup
- Backup other users' twitter accounts with Twitter API
+
+A tool to back up other users' Twitter accounts using the Twitter API. (Currently limited to the last 3200 tweets).
+
+
 
 ## Usage
 
