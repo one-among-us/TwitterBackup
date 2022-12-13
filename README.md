@@ -2,7 +2,7 @@
 
 A tool to back up other users' Twitter accounts using the Twitter API. (Currently limited to the last 3200 tweets).
 
-
+https://user-images.githubusercontent.com/22280294/207434663-a2fa6170-d740-4f35-82f6-df41bdce8837.mp4
 
 ## Usage
 
