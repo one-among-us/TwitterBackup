@@ -9,8 +9,9 @@ https://user-images.githubusercontent.com/22280294/207434663-a2fa6170-d740-4f35-
 1. Install python `>= 3.7` (Tested on python 3.11)
 2. `pip install twb`
 3. [Register for a Twitter API token](https://developer.twitter.com/en/portal/dashboard)
-4. Put your tokens in `$HOME/.config/twb/config.toml` or `./config.toml`. You can reference the example config below
-5. Run command `twb <username>`
+4. Put your tokens in `$HOME/.config/twb/config.toml` or `./config.toml`.   
+  You can reference the example config below
+5. Run command `twb <username>`, and it will download to `./backups`
 
 #### Example Config
 
