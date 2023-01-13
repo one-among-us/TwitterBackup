@@ -28,6 +28,7 @@ urls = { Homepage = 'https://github.com/one-among-us/TwitterBackup' }
 [tool.setuptools]
 py-modules = ["twb"]
 packages = ['twb']
+script-files = ["twb/tools/twb-compress"]
 
 [tool.setuptools.dynamic]
 version = {attr = "twb.__version__"}

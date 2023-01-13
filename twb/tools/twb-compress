@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-pushd backups
+pushd "${1:-backups}"
 for d in */ ; do
     d="${d%/}"
     [ -L "$d" ] && continue
