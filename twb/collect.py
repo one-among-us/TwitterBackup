@@ -6,6 +6,7 @@ from pathlib import Path
 
 import hypy_utils.downloader
 from hypy_utils import write, json_stringify, printc, ensure_dir
+from hypy_utils.tqdm_utils import tmap
 from tweepy import API, Tweet, Unauthorized, NotFound, OAuthHandler, User
 
 from .config import Config
@@ -136,11 +137,12 @@ def download_all_tweets(api: API, screen_name: str, json_path: Path,
     write(file, json_stringify([t._json for t in tweets], indent=2))
 
 
-def download_media(json_path: Path):
+def download_media(json_path: Path, mt: bool = False):
     """
     Download media urls embedded in a twitter json to somewhere local
 
     :param json_path: Path to tweets.json
+    :param mt: Multithread (might break progress bar display)
     """
     dp = json_path.parent
     obj = json.loads(json_path.read_text())
@@ -162,10 +164,16 @@ def download_media(json_path: Path):
                 hypy_utils.downloader.download_file(url, fp)
             media['local_video_path'] = str(fp.relative_to(dp))
 
+    # Gather media objects
+    medias = []
     for t in obj:
-        medias = (t.get("entities") or {}).get("media") or []
-        [download(m) for m in medias]
-        medias = (t.get("extended_entities") or {}).get("media") or []
+        medias += (t.get("entities") or {}).get("media") or []
+        medias += (t.get("extended_entities") or {}).get("media") or []
+
+    # Download
+    if mt:
+        tmap(download, medias, desc="Downloading medias")
+    else:
         [download(m) for m in medias]
 
     write(json_path, json_stringify(obj, indent=2))

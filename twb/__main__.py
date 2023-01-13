@@ -14,6 +14,8 @@ def run():
     parser.add_argument("username", help="@user of the user you want to back up")
     parser.add_argument("-p", "--path", help="Output path")
     parser.add_argument("-c", "--config", help="Config file path")
+    parser.add_argument("-m", "--multithread", help="Use multithreading when downloading media (breaks progress bar)",
+                        action='store_true')
     args = parser.parse_args()
 
     # Load config
@@ -30,7 +32,7 @@ def run():
     download_all_tweets(api, args.username, json_path)
 
     # Download media
-    download_media(json_path)
+    download_media(json_path, mt=args.multithread)
 
     printc('&a⭐️ All done!')
 
