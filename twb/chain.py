@@ -166,7 +166,11 @@ def download_users_execute(api: API, n: float,
 
             # Read jsons
             jsons = [USER_DIR / f'users-new/{u}.json' for u in ids]
-            friends: list[dict] = pmap(_helper_load_json, jsons)
+            jsons_safe = [j for j in jsons if j.is_file()]
+            if len(jsons_safe) != len(jsons):
+                print("ERROR: At least one json id exist in downloads but has no associated json file:")
+                print(set(jsons) - set(jsons_safe))
+            friends: list[dict] = pmap(_helper_load_json, jsons_safe)
 
         except TooManyRequests:
             # Rate limited, sleep and try again
