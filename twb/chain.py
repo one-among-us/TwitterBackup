@@ -121,7 +121,8 @@ def download_users_execute(api: API, n: float,
     """
     # Rate limit for this API endpoint is 1 request per minute, and rate delay defines how many
     # seconds to sleep for each request.
-    rate_delay = calculate_rate_delay(1) + 1
+    rate_delay_15_15 = calculate_rate_delay(1) + 1
+    rate_delay_900_15 = calculate_rate_delay(900 / 15)
 
     print("Executing friends-chain download:")
     print(f"- n: {n}")
@@ -138,13 +139,20 @@ def download_users_execute(api: API, n: float,
         screen_name = current_set.pop()
         debug(f"Starting friend-chain from {screen_name}")
 
+        # Start time for get_friend_ids rate limit
+        rate_start_time = time.time()
+
         try:
             # Get a list of friend ids
             ids: list[int] = []
             for lst in tweepy.Cursor(api.get_friend_ids, screen_name=screen_name, count=5000).pages(limit=5):
+                # Rate delay starting on the second iteration
+                if ids:
+                    time.sleep(rate_delay_15_15)
+                    rate_start_time = time.time()
+
                 ids.extend(lst)
                 debug(f"> Obtained {len(ids)} friend ids in total.")
-                time.sleep(calculate_rate_delay(1))
 
             # Crawl each friend that doesn't exist
             dne = [f for f in ids if f not in downloaded]
@@ -155,7 +163,7 @@ def download_users_execute(api: API, n: float,
 
                 # crawl users
                 users = api.lookup_users(user_id=seg)
-                time.sleep(calculate_rate_delay(900 / 15))
+                time.sleep(rate_delay_900_15)
                 debug(f"> Saved {len(users)} user jsons, {len(dne)} left")
 
                 for u in users:
@@ -202,6 +210,12 @@ def download_users_execute(api: API, n: float,
 
         debug(f'Finished saving friends of {screen_name} (added {len(screen_names)})')
         debug(f'============= Total {len(downloaded)} saved =============')
+
+        # If the elapsed time is lower than the rate limit, sleep
+        delta = rate_delay_15_15 - (time.time() - rate_start_time)
+        if delta > 0:
+            debug(f"Sleeping {delta:.2f}s")
+            time.sleep(delta)
 
 
 def chain_exp(api: API):
