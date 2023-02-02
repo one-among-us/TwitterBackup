@@ -4,18 +4,20 @@ import os
 import random
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import tweepy
-from hypy_utils import read, write, json_stringify
+from hypy_utils import read, write, json_stringify, jsn
 from hypy_utils.tqdm_utils import pmap
+from twb.utils import debug
 
 from .collect import calculate_rate_delay, download_all_tweets
 from tweepy import API, User, TooManyRequests
 
 DATA_DIR = Path("../twitter-data/twitter")
 USER_DIR = DATA_DIR / "user"
-META_DIR = USER_DIR / 'meta/meta.json'
-KW = set("⚧|🌈|mtf|ftm|mtx|ftx|nonbi|trans|药娘|🍥|含糖|无糖|家长党|hrt|they/them|she/they|he/they".lower().split("|"))
+META_DIR = USER_DIR / 'meta/meta-new.json'
+KW = set("⚧|🌈|mtf|ftm|mtx|ftx|nonbi|trans|药娘|飞天猫|🍥|含糖|无糖|家长党|hrt|they/them|she/they|he/they".lower().split("|"))
 
 
 def filter_kw(s: str) -> bool:
@@ -23,8 +25,8 @@ def filter_kw(s: str) -> bool:
     return any(w in s for w in KW)
 
 
-def filter_user(user: User) -> bool:
-    return filter_kw(user.name + user.description + user.id + user.location + user.screen_name)
+def filter_user(u: dict) -> bool:
+    return filter_kw(u['name'] + u['description'] + u['location'] + u['screen_name'])
 
 
 def download_users_start(api: API, start_point: str, n: float = math.inf) -> None:
@@ -88,13 +90,18 @@ def download_users_resume_progress(api: API) -> None:
     meta = json.loads(read(META_DIR))
 
     # Resume
+    downloaded = {str(f) for f in os.listdir(USER_DIR / 'users-new') if str(f).endswith(".json")}
     download_users_execute(api, meta['n'],
-                           set(meta['downloaded']), set(meta['done_set']),
+                           downloaded, set(meta['done_set']),
                            set(meta['current_set']), set(meta['next_set']))
 
 
+def _json_namespace_helper(p: Path) -> SimpleNamespace:
+    return jsn(p.read_text())
+
+
 def download_users_execute(api: API, n: float,
-                           downloaded: set[str], done_set: set[str],
+                           downloaded: set[int], done_set: set[str],
                            current_set: set[str], next_set: set[str]) -> None:
     """
     Execute download from the given parameters. The download method is defined in the document for
@@ -118,7 +125,7 @@ def download_users_execute(api: API, n: float,
     print("Executing friends-chain download:")
     print(f"- n: {n}")
     print(f"- Requests per minute: {1}")
-    print(f"- Directory: {USER_DIR}")
+    print(f"- Directory: {USER_DIR.absolute()}")
     print(f"- Downloaded: {len(downloaded)}")
     print(f"- Current search set: {len(current_set)}")
     print(f"- Next search set: {len(next_set)}")
@@ -128,58 +135,53 @@ def download_users_execute(api: API, n: float,
     while len(downloaded) < n:
         # Take a screen name from the current list
         screen_name = current_set.pop()
+        debug(f"Starting friend-chain from {screen_name}")
 
         try:
-            # # Get a list of friend ids
-            friends: list[User] = api.get_friends(screen_name=screen_name, count=200)
-            # friends: list[str] = []
-            # for lst in tweepy.Cursor(api.get_friend_ids, screen_name=screen_name, count=5000).pages(limit=5):
-            #     friends.extend(lst)
-            #     time.sleep(calculate_rate_delay(1))
-            #
-            # # Crawl each friend that doesn't exist
-            # dne = [f for f in friends if f not in done_ids]
-            # users = []
-            # [user.screen_name for user in api.lookup_users(user_ids=friends)]
+            # Get a list of friend ids
+            ids: list[int] = []
+            for lst in tweepy.Cursor(api.get_friend_ids, screen_name=screen_name, count=5000).pages(limit=5):
+                ids.extend(lst)
+                debug(f"> Obtained {len(ids)} friend ids in total.")
+                time.sleep(calculate_rate_delay(1))
+
+            # Crawl each friend that doesn't exist
+            dne = [f for f in ids if f not in downloaded]
+            while dne:
+                # max 100 users at a time
+                seg = dne[:100]
+                dne = dne[100:]
+
+                # crawl users
+                users = api.lookup_users(user_id=seg)
+                time.sleep(calculate_rate_delay(900 / 15))
+                debug(f"> Saved {len(users)} user jsons, {len(dne)} left")
+
+                for u in users:
+                    # Save user json
+                    write(USER_DIR / f'users-new/{u.id}.json', json_stringify(u._json))
+                    write(USER_DIR / f'users/{u.screen_name}.json', json_stringify(u._json))
+                    downloaded.add(u.id)
+
+            # Read jsons
+            jsons = [USER_DIR / f'users-new/{u}.json' for u in ids]
+            friends: list[dict] = pmap(_helper_load_json, jsons)
 
         except TooManyRequests:
             # Rate limited, sleep and try again
-            print('Caught TooManyRequests exception: Rate limited, sleep and try again.')
-            time.sleep(rate_delay)
+            debug('Caught TooManyRequests exception: Rate limited, sleep and try again.')
+            time.sleep(120)
             current_set.add(screen_name)
             continue
-
-        # Save users
-        for user in friends:
-            # This user was not saved, save the user.
-            if user not in downloaded:
-                # Save user json
-                write(USER_DIR / f'users/{user.screen_name}.json', json_stringify(user._json))
-
-                # Add to set
-                downloaded.add(user.screen_name)
-                # debug(f'- Downloaded {user.screen_name}')
 
         # Filter users
         friends = [u for u in friends if filter_user(u)]
 
         # Get users and their popularity that we haven't downloaded
-        screen_names = [(u.screen_name, u.followers_count) for u in friends
-                        if u.screen_name not in done_set and not u.protected]
+        screen_names = [u['screen_name'] for u in friends if u['screen_name'] not in done_set and not u['protected']]
 
-        # Sort by followers count, from least popular to most popular
-        screen_names.sort(key=lambda x: x[1])
-
-        # Add 3 random users to the next set
-        # python_ta thinks that u is not indexable but it is, because it is a tuple of length 2
-        if len(screen_names) > 3:
-            samples = {u[0] for u in random.sample(screen_names, 3)}
-        else:
-            samples = {u[0] for u in screen_names}
-
-        # Add the selected users to the next set
-        for s in samples:
-            next_set.add(s)
+        # Add all users to the next set
+        next_set.update(screen_names)
 
         # Change name lists
         if len(current_set) == 0:
@@ -190,21 +192,16 @@ def download_users_execute(api: API, n: float,
         done_set.add(screen_name)
 
         # Update meta info so that downloading can be continued
-        meta = {'downloaded': downloaded, 'done_set': done_set,
-                'current_set': current_set, 'next_set': next_set, 'n': n}
+        meta = {'done_set': list(done_set), 'current_set': list(current_set), 'next_set': list(next_set), 'n': n}
         write(META_DIR, json_stringify(meta))
 
-        print(f'Finished saving friends of {screen_name}')
-        print(f'============= Total {len(downloaded)} saved =============')
-
-        # Rate limit
-        time.sleep(rate_delay)
+        debug(f'Finished saving friends of {screen_name} (added {len(screen_names)})')
+        debug(f'============= Total {len(downloaded)} saved =============')
 
 
 def chain_exp(api: API):
-    f = api.get_friends(screen_name="sauricat", count=200)
-
-    print("hi")
+    # download_users_start(api, "sauricat")
+    download_users_resume_progress(api)
 
 
 def _helper_load_json(p: Path):
