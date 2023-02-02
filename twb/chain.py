@@ -4,6 +4,7 @@ import os
 import random
 import time
 from pathlib import Path
+from traceback import print_exc
 from types import SimpleNamespace
 
 import tweepy
@@ -227,4 +228,10 @@ def chain_dl(api: API):
         if udir.is_dir():
             continue
 
-        download_all_tweets(api, u['screen_name'], udir / "tweets.json")
+        try:
+            download_all_tweets(api, u['screen_name'], udir / "tweets.json")
+        except Exception as e:
+            print(f"Skipped {u} because: {e}")
+            print_exc()
+            time.sleep(30)
+            continue
