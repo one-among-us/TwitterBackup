@@ -5,7 +5,7 @@ from pathlib import Path
 
 from hypy_utils import printc
 
-from .chain import test_main
+from .chain import chain_exp, chain_dl
 from .collect import tweepy_login, download_all_tweets, download_media
 from .config import load_config
 
@@ -17,7 +17,9 @@ def run():
     parser.add_argument("-c", "--config", help="Config file path")
     parser.add_argument("-m", "--multithread", help="Use multithreading when downloading media (breaks progress bar)",
                         action='store_true')
-    parser.add_argument("-t", "--test", help="Call testing function instead",
+    parser.add_argument("--chain-dl", help="Download all tweets for people in filtered friend chain",
+                        action='store_true')
+    parser.add_argument("--chain-exp", help="Expand friend chain user list",
                         action='store_true')
     args = parser.parse_args()
 
@@ -31,8 +33,11 @@ def run():
     BASEDIR = Path(args.path or "backups")
     json_path = BASEDIR / args.username / 'tweets.json'
 
-    if args.test:
-        test_main(api)
+    if args.chain_exp:
+        chain_exp(api)
+        exit(0)
+    if args.chain_dl:
+        chain_dl(api)
         exit(0)
 
     # Crawl tweets

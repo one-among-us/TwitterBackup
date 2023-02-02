@@ -1,22 +1,30 @@
 import json
 import math
+import os
 import random
 import time
+from pathlib import Path
 
 import tweepy
 from hypy_utils import read, write, json_stringify
-from .collect import calculate_rate_delay
+from hypy_utils.tqdm_utils import pmap
+
+from .collect import calculate_rate_delay, download_all_tweets
 from tweepy import API, User, TooManyRequests
 
-USER_DIR = "../TwitterData/users"
-KW = "⚧|🌈|mtf|ftm|mtx|ftx|nonbi|trans|药娘|🍥|含糖|无糖|家长党|hrt|they/them|she/they|he/they".lower().split("|")
+DATA_DIR = Path("../twitter-data/twitter")
+USER_DIR = DATA_DIR / "user"
+META_DIR = USER_DIR / 'meta/meta.json'
+KW = set("⚧|🌈|mtf|ftm|mtx|ftx|nonbi|trans|药娘|🍥|含糖|无糖|家长党|hrt|they/them|she/they|he/they".lower().split("|"))
+
+
+def filter_kw(s: str) -> bool:
+    s = s.lower()
+    return any(w in s for w in KW)
 
 
 def filter_user(user: User) -> bool:
-    context: str = user.name + user.description + user.id + user.location + user.screen_name
-    context = context.lower()
-
-    return any(w in context for w in KW)
+    return filter_kw(user.name + user.description + user.id + user.location + user.screen_name)
 
 
 def download_users_start(api: API, start_point: str, n: float = math.inf) -> None:
@@ -77,7 +85,7 @@ def download_users_resume_progress(api: API) -> None:
     :return: None
     """
     # Open file and read
-    meta = json.loads(read(f'{USER_DIR}/meta/meta.json'))
+    meta = json.loads(read(META_DIR))
 
     # Resume
     download_users_execute(api, meta['n'],
@@ -146,7 +154,7 @@ def download_users_execute(api: API, n: float,
             # This user was not saved, save the user.
             if user not in downloaded:
                 # Save user json
-                write(f'{USER_DIR}/users/{user.screen_name}.json', json_stringify(user._json))
+                write(USER_DIR / f'users/{user.screen_name}.json', json_stringify(user._json))
 
                 # Add to set
                 downloaded.add(user.screen_name)
@@ -184,7 +192,7 @@ def download_users_execute(api: API, n: float,
         # Update meta info so that downloading can be continued
         meta = {'downloaded': downloaded, 'done_set': done_set,
                 'current_set': current_set, 'next_set': next_set, 'n': n}
-        write(f'{USER_DIR}/meta/meta.json', json_stringify(meta))
+        write(META_DIR, json_stringify(meta))
 
         print(f'Finished saving friends of {screen_name}')
         print(f'============= Total {len(downloaded)} saved =============')
@@ -193,7 +201,33 @@ def download_users_execute(api: API, n: float,
         time.sleep(rate_delay)
 
 
-def test_main(api: API):
+def chain_exp(api: API):
     f = api.get_friends(screen_name="sauricat", count=200)
 
     print("hi")
+
+
+def _helper_load_json(p: Path):
+    return json.loads(p.read_text())
+
+
+def chain_dl(api: API):
+    print("Downloading...")
+
+    # Load all user jsons
+    users_dir = Path(USER_DIR) / "users"
+    users = [users_dir / f for f in os.listdir(users_dir) if f.endswith(".json")]
+    users = pmap(_helper_load_json, users, desc="Loading jsons", chunksize=5000)
+    print(f"Loaded {len(users)} users.")
+
+    # Filter trans users
+    users = [u for u in users if filter_kw(u['name'] + u['description'] + u['location'] + u['screen_name'])]
+    print(f"Total of {len(users)} users after filtering.")
+
+    # Download backup for each user
+    for u in users:
+        udir = DATA_DIR / "backups" / u['screen_name']
+        if udir.is_dir():
+            continue
+
+        download_all_tweets(api, u['screen_name'], udir / "tweets.json")
