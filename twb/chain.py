@@ -13,7 +13,7 @@ from hypy_utils import read, write, json_stringify, jsn
 from hypy_utils.tqdm_utils import pmap
 from twb.utils import debug
 
-from .collect import calculate_rate_delay, download_all_tweets
+from .collect import calculate_rate_delay, download_all_tweets, download_media
 from tweepy import API, User, TooManyRequests, Unauthorized
 
 DATA_DIR = Path("../twitter-data")
@@ -258,6 +258,25 @@ def chain_dl(api: API):
 
         try:
             download_all_tweets(api, u['screen_name'], udir / "tweets.json")
+        except Exception as e:
+            print(f"Skipped {u} because: {e}")
+            print_exc()
+            time.sleep(30)
+            continue
+
+
+def chain_media():
+    print("Downloading media...")
+
+    # Load all user jsons
+    backup_dir = DATA_DIR / "backups"
+
+    # Download backup for each user
+    for u in os.listdir(backup_dir):
+        udir = backup_dir / str(u) / "tweets.json"
+
+        try:
+            download_media(udir, mt=True)
         except Exception as e:
             print(f"Skipped {u} because: {e}")
             print_exc()

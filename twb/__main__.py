@@ -5,7 +5,7 @@ from pathlib import Path
 
 from hypy_utils import printc
 
-from .chain import chain_exp, chain_dl
+from .chain import chain_exp, chain_dl, chain_media
 from .collect import tweepy_login, download_all_tweets, download_media
 from .config import load_config
 
@@ -20,6 +20,8 @@ def run():
     parser.add_argument("--chain-dl", help="Download all tweets for people in filtered friend chain",
                         action='store_true')
     parser.add_argument("--chain-exp", help="Expand friend chain user list",
+                        action='store_true')
+    parser.add_argument("--chain-media", help="Download all media from downloaded users",
                         action='store_true')
     args = parser.parse_args()
 
@@ -38,6 +40,9 @@ def run():
         exit(0)
     if args.chain_dl:
         chain_dl(api)
+        exit(0)
+    if args.chain_media:
+        chain_media()
         exit(0)
 
     # Crawl tweets
