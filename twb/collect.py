@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+import traceback
 from pathlib import Path
 
 import hypy_utils.downloader
@@ -86,14 +87,15 @@ def download_all_tweets(api: API, screen_name: str, json_path: Path,
     """
     # Ensure directories exist
     file = Path(json_path)
+    file404 = file.with_suffix(".404")
 
     # Check if user already exists
-    if file.is_file():
-        if download_if_exists:
-            debug(f'!!! User tweets data for {screen_name} already exists, but overwriting.')
-        else:
-            debug(f'User tweets data for {screen_name} already exists, skipping.')
-            return
+    if file.is_file() and not download_if_exists:
+        debug(f'User tweets data for {screen_name} already exists, skipping.')
+        return
+    if file404.is_file() and not download_if_exists:
+        debug(f"User previously recorded as 404.")
+        return
 
     debug(f'Downloading user tweets for {screen_name}')
 
@@ -103,11 +105,13 @@ def download_all_tweets(api: API, screen_name: str, json_path: Path,
     # Get initial 200 tweets
     try:
         tweets = get_tweets(api, screen_name, rate_delay, None)
-    except Unauthorized:
+    except Unauthorized as e:
         debug(f'- {screen_name}: Unauthorized. Probably a private account, ignoring.')
+        write(file404, f"{repr(e)}\n{traceback.format_exc()}")
         return
-    except NotFound:
+    except NotFound as e:
         debug(f'- {screen_name}: Not found. Probably a deleted account, ignoring.')
+        write(file404, f"{repr(e)}\n{traceback.format_exc()}")
         return
 
     # This person has no tweets, done. (By the way, we discovered that @lorde has no tweets but has
