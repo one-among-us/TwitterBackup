@@ -2,6 +2,7 @@ import json
 import math
 import os
 import random
+import string
 import time
 from pathlib import Path
 from traceback import print_exc
@@ -15,14 +16,18 @@ from twb.utils import debug
 from .collect import calculate_rate_delay, download_all_tweets
 from tweepy import API, User, TooManyRequests
 
-DATA_DIR = Path("../twitter-data/twitter")
+DATA_DIR = Path("../twitter-data")
 USER_DIR = DATA_DIR / "user"
 META_DIR = USER_DIR / 'meta/meta-new.json'
-KW = set("⚧|🌈|mtf|ftm|mtx|ftx|nonbi|trans|药娘|飞天猫|🍥|含糖|无糖|家长党|hrt|they/them|she/they|he/they".lower().split("|"))
+KW = set("⚧|🌈|mtf|ftm|mtx|ftx|nonbi|trans |transgender|transmasc|transfem|"
+         "药娘|飞天猫|🍥|含糖|无糖|家长党|hrt|they/them|she/they|he/they".lower().split("|"))
 
 
 def filter_kw(s: str) -> bool:
-    s = s.lower()
+    s = s.lower() + " "
+    # Replace punctuations for whole-word matching
+    for p in string.punctuation:
+        s = s.replace(p, " ")
     return any(w in s for w in KW)
 
 
