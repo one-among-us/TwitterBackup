@@ -14,7 +14,7 @@ from hypy_utils.tqdm_utils import pmap
 from twb.utils import debug
 
 from .collect import calculate_rate_delay, download_all_tweets
-from tweepy import API, User, TooManyRequests
+from tweepy import API, User, TooManyRequests, Unauthorized
 
 DATA_DIR = Path("../twitter-data")
 USER_DIR = DATA_DIR / "user"
@@ -192,6 +192,11 @@ def download_users_execute(api: API, n: float,
             current_set.add(screen_name)
             continue
 
+        except Unauthorized as e:
+            debug(f'{screen_name}: Skipping - unauthorized: {e}')
+            print_exc()
+            continue
+
         # Filter users
         friends = [u for u in friends if filter_user(u)]
 
@@ -242,7 +247,7 @@ def chain_dl(api: API):
     print(f"Loaded {len(users)} users.")
 
     # Filter trans users
-    users = [u for u in users if filter_kw(u['name'] + u['description'] + u['location'] + u['screen_name'])]
+    users = [u for u in users if filter_user(u)]
     print(f"Total of {len(users)} users after filtering.")
 
     # Download backup for each user
