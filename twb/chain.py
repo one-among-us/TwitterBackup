@@ -14,7 +14,7 @@ from hypy_utils.tqdm_utils import pmap
 from twb.utils import debug
 
 from .collect import calculate_rate_delay, download_all_tweets, download_media
-from tweepy import API, User, TooManyRequests, Unauthorized
+from tweepy import API, User, TooManyRequests, Unauthorized, NotFound
 
 DATA_DIR = Path("../twitter-data")
 USER_DIR = DATA_DIR / "user"
@@ -192,7 +192,7 @@ def download_users_execute(api: API, n: float,
             current_set.add(screen_name)
             continue
 
-        except Unauthorized as e:
+        except (Unauthorized, NotFound) as e:
             debug(f'{screen_name}: Skipping - unauthorized: {e}')
             print_exc()
             continue
