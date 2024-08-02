@@ -37,9 +37,7 @@ class TwitterRequester:
              "responsive_web_graphql_timeline_navigation_enabled": True}
         t = {"withAuxiliaryUserLabels": False}
 
-        return \
-        self._request('https://x.com/i/api/graphql/xmU6X_CKVnQ5lSrCbAmJsg/UserByScreenName', v, f, t)['data']['user'][
-            'result']
+        return self._request('https://x.com/i/api/graphql/xmU6X_CKVnQ5lSrCbAmJsg/UserByScreenName', v, f, t)['data']['user']['result']
 
     def user_tweets(self, user_id: int, cursor: str | None = None) -> (list, str, str):
         """
