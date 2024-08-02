@@ -5,6 +5,9 @@ from pathlib import Path
 
 import requests
 from hypy_utils import ensure_parent, write_json
+from hypy_utils.logging_utils import setup_logger
+
+log = setup_logger()
 
 
 class TwitterRequester:
@@ -34,51 +37,36 @@ class TwitterRequester:
              "responsive_web_graphql_timeline_navigation_enabled": True}
         t = {"withAuxiliaryUserLabels": False}
 
-        return self._request('https://x.com/i/api/graphql/xmU6X_CKVnQ5lSrCbAmJsg/UserByScreenName', v, f, t)['data']['user']['result']
+        return \
+        self._request('https://x.com/i/api/graphql/xmU6X_CKVnQ5lSrCbAmJsg/UserByScreenName', v, f, t)['data']['user'][
+            'result']
 
     def user_tweets(self, user_id: int, cursor: str | None = None) -> (list, str, str):
         """
         :return: Tweets, last cursor, next cursor
         """
-        v = {
-            "userId": str(user_id),
-            "count": 20,
-            "includePromotedContent": False,
-            "withQuickPromoteEligibilityTweetFields": True,
-            "withVoice": True,
-            "withV2Timeline": True
-        }
+        v = {"userId": str(user_id), "count": 20, "includePromotedContent": False, "withCommunity": True,
+             "withVoice": True, "withV2Timeline": True}
         if cursor:
             v['cursor'] = cursor
-        f = {
-            "rweb_tipjar_consumption_enabled": True,
-            "responsive_web_graphql_exclude_directive_enabled": True,
-            "verified_phone_label_enabled": False,
-            "creator_subscriptions_tweet_preview_api_enabled": True,
-            "responsive_web_graphql_timeline_navigation_enabled": True,
-            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
-            "communities_web_enable_tweet_community_results_fetch": True,
-            "c9s_tweet_anatomy_moderator_badge_enabled": True,
-            "articles_preview_enabled": True,
-            "tweetypie_unmention_optimization_enabled": True,
-            "responsive_web_edit_tweet_api_enabled": True,
-            "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
-            "view_counts_everywhere_api_enabled": True,
-            "longform_notetweets_consumption_enabled": True,
-            "responsive_web_twitter_article_tweet_consumption_enabled": True,
-            "tweet_awards_web_tipping_enabled": False,
-            "creator_subscriptions_quote_tweet_preview_enabled": False,
-            "freedom_of_speech_not_reach_fetch_enabled": True,
-            "standardized_nudges_misinfo": True,
-            "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": True,
-            "rweb_video_timestamps_enabled": True,
-            "longform_notetweets_rich_text_read_enabled": True,
-            "longform_notetweets_inline_media_enabled": True,
-            "responsive_web_enhance_cards_enabled": False
-        }
+        f = {"rweb_tipjar_consumption_enabled": True, "responsive_web_graphql_exclude_directive_enabled": True,
+             "verified_phone_label_enabled": False, "creator_subscriptions_tweet_preview_api_enabled": True,
+             "responsive_web_graphql_timeline_navigation_enabled": True,
+             "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+             "communities_web_enable_tweet_community_results_fetch": True,
+             "c9s_tweet_anatomy_moderator_badge_enabled": True, "articles_preview_enabled": True,
+             "responsive_web_edit_tweet_api_enabled": True,
+             "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
+             "view_counts_everywhere_api_enabled": True, "longform_notetweets_consumption_enabled": True,
+             "responsive_web_twitter_article_tweet_consumption_enabled": True,
+             "tweet_awards_web_tipping_enabled": False, "creator_subscriptions_quote_tweet_preview_enabled": False,
+             "freedom_of_speech_not_reach_fetch_enabled": True, "standardized_nudges_misinfo": True,
+             "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": True,
+             "rweb_video_timestamps_enabled": True, "longform_notetweets_rich_text_read_enabled": True,
+             "longform_notetweets_inline_media_enabled": True, "responsive_web_enhance_cards_enabled": False}
         t = {"withArticlePlainText": False}
 
-        inst: dict = self._request('https://x.com/i/api/graphql/V7H0Ap3_Hh2FyS75OCDO3Q/UserTweets', v, f, t)
+        inst: dict = self._request('https://x.com/i/api/graphql/bt4TKuFz4T7Ckk-VvQVSow/UserTweetsAndReplies', v, f, t)
         inst: list = inst['data']['user']['result']['timeline_v2']['timeline']['instructions']
 
         # Find type=TimelineAddEntries
@@ -91,20 +79,21 @@ class TwitterRequester:
 
         # Count types
         type_count = Counter(t['__typename'].replace('Timeline', '') for t in tl)
-        print(f'Got: {type_count}')
+        log.info(f'+ {type_count}')
 
-        # Find type=TimelineTimelineItem
-        tweets = [t for t in tl if t['__typename'] == 'TimelineTimelineItem']
+        # Find items
+        tweets = [t for t in tl if t['__typename'] != 'TimelineTimelineCursor']
 
         # Find cursors
         cursors = {t['cursorType']: t['value'] for t in tl if t['__typename'] == 'TimelineTimelineCursor'}
 
         return tweets, cursors['Top'], cursors['Bottom']
 
-    def crawl_all(self, screen_name: str, rate_delay: float = 0.5) -> None:
+    def crawl_all(self, screen_name: str, rate_delay: float = 10) -> None:
         """
         Crawl all tweets of a user
         """
+        log.info(f'Crawling {screen_name}...')
         fp = ensure_parent(f'backups/{screen_name}/tweets.json')
 
         # Load progress
@@ -120,7 +109,9 @@ class TwitterRequester:
 
             all_tweets.extend(tweets)
             write_json(fp, [all_tweets, last_top, last_bottom], indent=2)
+            log.info(f'Got total {len(all_tweets)} tweets')
             if last_top == last_bottom or len(tweets) == 0:
+                log.info(f'Done: {len(all_tweets)} tweets')
                 break
             time.sleep(rate_delay)
 
