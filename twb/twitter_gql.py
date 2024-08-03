@@ -10,7 +10,7 @@ from hypy_utils.logging_utils import setup_logger
 log = setup_logger()
 
 
-class TwitterRequester:
+class TwitterGQL:
     HTTP = requests.session()
 
     def __init__(self, cookies: str) -> None:
@@ -123,20 +123,3 @@ class TwitterRequester:
         })
         resp.raise_for_status()
         return resp.json()
-
-
-if __name__ == '__main__':
-    # Load cookies from a JSON export of EditThisCookie
-    requester = TwitterRequester(Path('cookies.json').read_text())
-
-    # Crawl all tweets
-    requester.crawl_all('hykilpikonna')
-
-    # # Make requests
-    # response = requester.user_by_screen_name('hykilpikonna')
-    # print(json.dumps(response, indent=2, sort_keys=True, ensure_ascii=False))
-    #
-    # id = response['rest_id']
-    #
-    # response = requester.user_tweets(id)
-    # print(response)
