@@ -159,3 +159,4 @@ backups
 
 # Secret
 config.toml
+cookies.json
