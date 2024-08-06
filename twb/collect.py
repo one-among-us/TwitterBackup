@@ -21,7 +21,7 @@ def download_media(json_path: Path, mt: bool = False):
     obj = json.loads(json_path.read_text())
 
     def download(url: str):
-        fp = ensure_dir(dp / 'media') / url.split("/")[-1]
+        fp = ensure_dir(dp / 'media') / url.split("/")[-1].split("?")[0]
         if fp.is_file():
             return
         hypy_utils.downloader.download_file(url, fp)
@@ -53,4 +53,4 @@ def download_media(json_path: Path, mt: bool = False):
 
 
 if __name__ == '__main__':
-    download_media(Path('backups/zzj876/tweets.json'))
+    download_media(Path('backups/zzj876/tweets.json'), mt=True)
