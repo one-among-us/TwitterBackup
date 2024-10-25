@@ -13,7 +13,7 @@ def run():
     parser = argparse.ArgumentParser("Twitter Backup Tool")
     parser.add_argument("username", help="@user of the user you want to back up")
     parser.add_argument("-p", "--path", help="Output path")
-    parser.add_argument("-c", "--cookies", help="EditThisCookie export json file path", default="cookies.json")
+    parser.add_argument("-c", "--cookies", help="A folder containing EditThisCookie export json files", default="cookiezi")
     parser.add_argument("-m", "--multithread", help="Use multithreading when downloading media (breaks progress bar)",
                         action='store_true')
     args = parser.parse_args()
@@ -24,7 +24,7 @@ def run():
         printc('&cCookies file not found')
         return
 
-    api = TwitterGQL(cp.read_text('utf-8'))
+    api = TwitterGQL(cp)
 
     # Convert path
     basedir = Path(args.path or "backups")

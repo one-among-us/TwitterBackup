@@ -10,7 +10,7 @@ from twb.twitter_gql import TwitterGQL
 def crawl_replies_main():
     parser = argparse.ArgumentParser("Twitter Backup Tool")
     parser.add_argument('export_dir', help='Directory containing the exported tweets')
-    parser.add_argument("-c", "--cookies", help="EditThisCookie export json file path", default="cookies.json")
+    parser.add_argument("-c", "--cookies", help="A folder containing EditThisCookie export json files", default="cookiezi")
     args = parser.parse_args()
 
     # Create API
@@ -19,7 +19,7 @@ def crawl_replies_main():
         printc('&cCookies file not found')
         return
 
-    api = TwitterGQL(cp.read_text('utf-8'), base_dir=args.export_dir)
+    api = TwitterGQL(cp, base_dir=args.export_dir)
 
     # Read export file and parse tweet IDs
     export_dir = Path(args.export_dir) / 'data/tweets.js'

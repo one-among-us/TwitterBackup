@@ -13,17 +13,26 @@ from twb.gql_consts import TWEETS_F
 
 log = setup_logger()
 cache_dir = ensure_dir(Path(__file__).parent / '.cache')
+RATE_DELAY = 3
 
 
 class TwitterGQL:
     HTTP = requests.session()
+    cookie_sets: list[dict] = []
+    cookie_idx = 0
 
-    def __init__(self, cookies: str, base_dir: Path = Path('backups')):
+    def __init__(self, cookies: Path, base_dir: Path = Path('backups')):
         self.base_dir = Path(base_dir)
 
-        # Parse json cookie
-        bacon: list[dict] = json.loads(cookies)
-        bacon: dict = {d['name']: d['value'] for d in bacon}
+        # Load all cookie files
+        for cf in cookies.glob('*.json'):
+            bacon = json.loads(cf.read_text())
+            self.cookie_sets.append({d['name']: d['value'] for d in bacon})
+        assert self.cookie_sets, 'No cookies loaded'
+        self.set_cookie(0)
+
+    def set_cookie(self, idx: int):
+        bacon = self.cookie_sets[idx]
 
         [self.HTTP.cookies.set(k, v) for k, v in bacon.items()]
         self.HTTP.headers.update({
@@ -31,6 +40,11 @@ class TwitterGQL:
             'Authorization': f'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
             'x-csrf-token': bacon['ct0']
         })
+
+    def rotate_cookie(self):
+        self.cookie_idx = (self.cookie_idx + 1) % len(self.cookie_sets)
+        log.error(f"Rotating cookie to {self.cookie_idx}...")
+        self.set_cookie(self.cookie_idx)
 
     def user_by_screen_name(self, screen_name: str) -> dict:
         v = {"screen_name": screen_name, "withSafetyModeUserFields": True}
@@ -58,6 +72,7 @@ class TwitterGQL:
         t = {"withArticlePlainText": False}
 
         inst: dict = self._request('https://x.com/i/api/graphql/bt4TKuFz4T7Ckk-VvQVSow/UserTweetsAndReplies', v, f, t)
+        time.sleep(RATE_DELAY)
         inst: list = inst['data']['user']['result']['timeline_v2']['timeline']['instructions']
 
         # Find type=TimelineAddEntries
@@ -92,7 +107,7 @@ class TwitterGQL:
             t = {"withArticleRichContentState": True, "withArticlePlainText": False, "withGrokAnalyze": False,
                  "withDisallowedReplyControls": False}
             r: dict = self._request('https://x.com/i/api/graphql/nBS-WpgA6ZG0CyNHD517JQ/TweetDetail', v, f, t)
-            time.sleep(10)
+            time.sleep(RATE_DELAY)
             write_json(fp, r)
         if r.get('errors'):
             log.error(f'Error: {r["errors"]}')
@@ -146,7 +161,7 @@ class TwitterGQL:
             return
         self.crawl_parent(tweet_id)
 
-    def crawl_all(self, screen_name: str, rate_delay: float = 10) -> None:
+    def crawl_all(self, screen_name: str) -> None:
         """
         Crawl all tweets of a user
         """
@@ -170,15 +185,21 @@ class TwitterGQL:
             if last_top == last_bottom or len(tweets) == 0:
                 log.info(f'Done: {len(all_tweets)} tweets')
                 break
-            time.sleep(rate_delay)
 
-    def _request(self, url: str, variables: dict, features: dict, field_toggles: dict) -> dict:
-        resp = self.HTTP.get(url, headers={
-            'x-csrf-token': self.HTTP.cookies.get('ct0')
-        }, params={
+    def _request(self, url: str, variables: dict, features: dict, field_toggles: dict, retries: int = 3) -> dict:
+        if retries == 0:
+            raise RuntimeError('Retries exhausted')
+
+        resp = self.HTTP.get(url, headers={'x-csrf-token': self.HTTP.cookies.get('ct0')}, params={
             'variables': json.dumps(variables),
             'features': json.dumps(features),
             'fieldToggles': json.dumps(field_toggles),
         })
+        # Rate limit
+        if resp.status_code == 429:
+            log.error('Rate limited')
+            self.rotate_cookie()
+            return self._request(url, variables, features, field_toggles, retries - 1)
+
         resp.raise_for_status()
         return resp.json()
