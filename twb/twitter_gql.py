@@ -116,6 +116,36 @@ class TwitterGQL:
         elif isinstance(d, list):
             return sum([self._dfs_find_tweets(item) for item in d], [])
         return []
+
+    def crawl_parent(self, tweet_id: str | int):
+        """
+        From this tweet, crawl all its parent tweets until the root tweet
+        """
+        tweet_id = str(tweet_id)
+        file = self.base_dir / f'twb/by-id/{tweet_id[:2]}/{tweet_id}.json'
+        if file.exists():
+            d = orjson.loads(file.read_bytes())
+            rep = d['legacy'].get('in_reply_to_status_id_str')
+            return self.crawl_parent(rep) if rep else None
+
+        log.info(f'Crawling parent of {tweet_id}...')
+        _d = self.tweet_detail(tweet_id)
+        if not _d:
+            log.error(f'No data for {tweet_id}')
+            return
+        d = self._dfs_find_tweets(_d)
+
+        # Save all tweets to file
+        def save_tweet(t: dict):
+            fp = ensure_parent(self.base_dir / f'twb/by-id/{t["rest_id"][:2]}/{t["rest_id"]}.json')
+            write_json(fp, t) if not fp.exists() else None
+            return t["rest_id"] == tweet_id
+
+        if not any(tmap(save_tweet, d)):
+            log.error(f'Root tweet not found for {tweet_id}')
+            return
+        self.crawl_parent(tweet_id)
+
     def crawl_all(self, screen_name: str, rate_delay: float = 10) -> None:
         """
         Crawl all tweets of a user
