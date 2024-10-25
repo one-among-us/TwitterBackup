@@ -107,6 +107,15 @@ class TwitterGQL:
             return []
         r: list = r[0]['entries']
         return r
+
+    def _dfs_find_tweets(self, d):
+        if isinstance(d, dict):
+            return [d] if d.get('__typename') == 'Tweet' \
+                else [d['tweet']] if d.get('__typename') == 'TweetWithVisibilityResults' \
+                else sum([self._dfs_find_tweets(value) for value in d.values()], [])
+        elif isinstance(d, list):
+            return sum([self._dfs_find_tweets(item) for item in d], [])
+        return []
     def crawl_all(self, screen_name: str, rate_delay: float = 10) -> None:
         """
         Crawl all tweets of a user
