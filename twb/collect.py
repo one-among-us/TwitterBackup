@@ -24,7 +24,7 @@ def download_media(json_path: Path, mt: bool = False):
         fp = ensure_dir(dp / 'media') / url.split("/")[-1].split("?")[0]
         if fp.is_file():
             return
-        hypy_utils.downloader.download_file(url, fp)
+        hypy_utils.downloader.download_file(url, fp, progress=not mt)
 
     def extract_media_urls(o: list | dict, target_key) -> list:
         if isinstance(o, dict):
