@@ -3,6 +3,7 @@ import os
 import time
 from collections import Counter
 from pathlib import Path
+from typing import Callable, Awaitable
 
 import orjson
 import pandas as pd
@@ -182,7 +183,7 @@ class TwitterGQL:
             return
         self.crawl_parent(tweet_id)
 
-    def crawl_all(self, screen_name: str) -> None:
+    async def crawl_all(self, screen_name: str, progress_callback: Callable[[str], Awaitable[None]] | None = None) -> None:
         """
         Crawl all tweets of a user
         """
@@ -203,6 +204,7 @@ class TwitterGQL:
             all_tweets.extend(tweets)
             write_json(fp, [all_tweets, last_top, last_bottom], indent=2)
             log.info(f'Got total {len(all_tweets)} tweets')
+            progress_callback and await progress_callback(f'Crawling... ({len(all_tweets)} tweets)')
             if last_top == last_bottom or len(tweets) == 0:
                 log.info(f'Done: {len(all_tweets)} tweets')
                 break

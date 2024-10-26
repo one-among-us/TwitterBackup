@@ -162,3 +162,4 @@ config.toml
 cookies.json
 cookiezi
 alts.csv
+venv-linux
