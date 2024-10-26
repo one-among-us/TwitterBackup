@@ -3,13 +3,14 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import asyncio
 from hypy_utils import printc
 
 from twb.twitter_gql import TwitterGQL
 from .collect import download_media
 
 
-def run():
+async def run():
     parser = argparse.ArgumentParser("Twitter Backup Tool")
     parser.add_argument("username", help="@user of the user you want to back up")
     parser.add_argument("-p", "--path", help="Output path")
@@ -31,7 +32,7 @@ def run():
     json_path = basedir / args.username / 'tweets.json'
 
     # Crawl tweets
-    api.crawl_all(args.username)
+    await api.crawl_all(args.username)
 
     # Download media
     download_media(json_path, mt=args.multithread)
@@ -40,4 +41,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    asyncio.run(run())
