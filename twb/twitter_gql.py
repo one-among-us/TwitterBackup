@@ -15,12 +15,13 @@ from twb.gql_consts import TWEETS_F
 
 log = setup_logger()
 cache_dir = ensure_dir(Path(__file__).parent / '.cache')
-RATE_DELAY = 1
+RATE_DELAY = 0.5
 
 
 class TwitterGQL:
     HTTP = requests.session()
     cookie_sets: list[dict] = []
+    cookie_names: list[str] = []
     cookie_idx = 0
 
     def __init__(self, cookies: Path, base_dir: Path = Path('backups')):
@@ -34,11 +35,13 @@ class TwitterGQL:
                 'auth_token': d['auth_token'],
                 'ct0': d['ct0']
             } for d in v]
+            self.cookie_names += [d['screen_name'] for d in v]
 
         # Load all cookie files
         for cf in cookies.glob('*.json'):
             bacon = json.loads(cf.read_text())
             self.cookie_sets.append({d['name']: d['value'] for d in bacon})
+            self.cookie_names.append(cf.stem)
         assert self.cookie_sets, 'No cookies loaded'
         self.set_cookie(0)
 
@@ -124,7 +127,11 @@ class TwitterGQL:
             log.warning(f'Error: {r["errors"]}')
             if 'AuthorizationError' in str(r['errors']):
                 os.remove(fp)
-                os._exit(0)
+                # Wait 2 minutes
+                time.sleep(120)
+                # Switch cookie
+                self.rotate_cookie()
+                return self.tweet_detail(tweet_id)
             return []
         r: list = r['data']['threaded_conversation_with_injections_v2']['instructions']
 
