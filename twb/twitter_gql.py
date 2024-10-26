@@ -1,9 +1,11 @@
 import json
+import os
 import time
 from collections import Counter
 from pathlib import Path
 
 import orjson
+import pandas as pd
 import requests
 from hypy_utils import ensure_parent, write_json, ensure_dir
 from hypy_utils.logging_utils import setup_logger
@@ -13,7 +15,7 @@ from twb.gql_consts import TWEETS_F
 
 log = setup_logger()
 cache_dir = ensure_dir(Path(__file__).parent / '.cache')
-RATE_DELAY = 3
+RATE_DELAY = 1
 
 
 class TwitterGQL:
@@ -23,6 +25,15 @@ class TwitterGQL:
 
     def __init__(self, cookies: Path, base_dir: Path = Path('backups')):
         self.base_dir = Path(base_dir)
+
+        # Check if alts.csv exist
+        if (cookies / 'alts.csv').exists():
+            # screen_name, password, 2fa, email, email_password, auth_token, ct0
+            v = pd.read_csv(cookies / 'alts.csv').to_dict(orient='records')
+            self.cookie_sets += [{
+                'auth_token': d['auth_token'],
+                'ct0': d['ct0']
+            } for d in v]
 
         # Load all cookie files
         for cf in cookies.glob('*.json'):
@@ -111,6 +122,8 @@ class TwitterGQL:
             write_json(fp, r)
         if r.get('errors'):
             log.error(f'Error: {r["errors"]}')
+            if r['errors']['name'] == 'AuthorizationError':
+                os._exit(0)
             return []
         r: list = r['data']['threaded_conversation_with_injections_v2']['instructions']
 
