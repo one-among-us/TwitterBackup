@@ -121,8 +121,9 @@ class TwitterGQL:
             time.sleep(RATE_DELAY)
             write_json(fp, r)
         if r.get('errors'):
-            log.error(f'Error: {r["errors"]}')
-            if r['errors']['name'] == 'AuthorizationError':
+            log.warning(f'Error: {r["errors"]}')
+            if 'AuthorizationError' in str(r['errors']):
+                os.remove(fp)
                 os._exit(0)
             return []
         r: list = r['data']['threaded_conversation_with_injections_v2']['instructions']
@@ -159,7 +160,7 @@ class TwitterGQL:
         log.info(f'Crawling parent of {tweet_id}...')
         _d = self.tweet_detail(tweet_id)
         if not _d:
-            log.error(f'No data for {tweet_id}')
+            log.warning(f'No data for {tweet_id}')
             return
         d = self._dfs_find_tweets(_d)
 
@@ -169,8 +170,8 @@ class TwitterGQL:
             write_json(fp, t) if not fp.exists() else None
             return t["rest_id"] == tweet_id
 
-        if not any(tmap(save_tweet, d)):
-            log.error(f'Root tweet not found for {tweet_id}')
+        if not any(map(save_tweet, d)):
+            log.warning(f'Root tweet not found for {tweet_id}')
             return
         self.crawl_parent(tweet_id)
 
@@ -199,7 +200,9 @@ class TwitterGQL:
                 log.info(f'Done: {len(all_tweets)} tweets')
                 break
 
-    def _request(self, url: str, variables: dict, features: dict, field_toggles: dict, retries: int = 3) -> dict:
+    def _request(self, url: str, variables: dict, features: dict, field_toggles: dict, retries: int = None) -> dict:
+        if retries is None:
+            retries = len(self.cookie_sets)
         if retries == 0:
             raise RuntimeError('Retries exhausted')
 

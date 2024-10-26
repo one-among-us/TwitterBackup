@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from hypy_utils import printc
+from hypy_utils.tqdm_utils import tq
 
 from twb.twitter_gql import TwitterGQL
 
@@ -35,7 +36,7 @@ def crawl_replies_main():
     tweet_ids = [tweet['tweet']['id'] for tweet in export_data if tweet['tweet'].get('in_reply_to_status_id')]
 
     # Crawl replies
-    for tweet_id in tweet_ids:
+    for tweet_id in tq(tweet_ids, "crawling parents"):
         api.crawl_parent(tweet_id)
 
 
